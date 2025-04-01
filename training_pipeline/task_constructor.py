@@ -111,12 +111,16 @@ class TaskConstructor:
 
 
 def transform_client_ids(
-    task: ValidTasks, client_ids: np.ndarray, data_dir: DataDir
-) -> np.ndarray:
+    task: ValidTasks,
+    client_ids: np.ndarray,
+    embeddings: np.ndarray,
+    data_dir: DataDir,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Restrict client_ids to active clients for churn task.
     """
     if task == ChurnTasks.CHURN:
         active_clients = np.load(data_dir.target_dir / "active_clients.npy")
-        return client_ids[np.isin(client_ids, active_clients)]
-    return client_ids
+        mask = np.isin(client_ids, active_clients)
+        return client_ids[mask], embeddings[mask]
+    return client_ids, embeddings

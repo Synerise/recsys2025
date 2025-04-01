@@ -145,8 +145,8 @@ def run_tasks(
         task_settings = task_constructor.construct_task(task=task)
 
         logger.info("Transforming client ids")
-        transformed_client_ids = transform_client_ids(
-            task=task, client_ids=client_ids, data_dir=data_dir
+        transformed_client_ids, transformed_embeddings = transform_client_ids(
+            task=task, client_ids=client_ids, embeddings=embeddings, data_dir=data_dir
         )
 
         logger.info("Setting up training logger")
@@ -155,7 +155,7 @@ def run_tasks(
         logger.info("Running training")
         run_training(
             task_settings=task_settings,
-            embeddings=embeddings,
+            embeddings=transformed_embeddings,
             client_ids=transformed_client_ids,
             target_data=target_data,
             num_workers=num_workers,
