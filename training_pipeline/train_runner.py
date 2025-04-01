@@ -35,7 +35,7 @@ from training_pipeline.target_data import (
 from training_pipeline.task_constructor import (
     TaskConstructor,
     TaskSettings,
-    transform_client_ids,
+    transform_client_ids_and_embeddings,
 )
 from training_pipeline.metric_aggregator import (
     MetricsAggregator,
@@ -145,7 +145,10 @@ def run_tasks(
         task_settings = task_constructor.construct_task(task=task)
 
         logger.info("Transforming client ids")
-        transformed_client_ids, transformed_embeddings = transform_client_ids(
+        (
+            transformed_client_ids,
+            transformed_embeddings,
+        ) = transform_client_ids_and_embeddings(
             task=task, client_ids=client_ids, embeddings=embeddings, data_dir=data_dir
         )
 

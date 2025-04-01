@@ -110,7 +110,7 @@ class TaskConstructor:
         return propensity_targets, popularity_data
 
 
-def transform_client_ids(
+def transform_client_ids_and_embeddings(
     task: ValidTasks,
     client_ids: np.ndarray,
     embeddings: np.ndarray,
