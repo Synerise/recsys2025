@@ -288,3 +288,6 @@ python -m training_pipeline.train --data-dir <your_splitted_challenge_data_dir> 
 
 ## Baselines
 In the `baseline` directory, we provide scripts with an example competition entry and an additional README_AGGREGATED_FEATURES.md file with more detailed instructions.  
+
+---
+*In case of any problems, you can contact the organizers by email via the address [recsyschallenge\@synerise.com](mailto:recsyschallenge\@synerise.com).*
