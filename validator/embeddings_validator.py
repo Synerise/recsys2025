@@ -72,16 +72,10 @@ class EmbeddingsValidator:
             Optional[str]: optional string reporting that some clients are missing.
         """
         if isinstance(self._relevant_client_ids, np.ndarray):
-            all_client_ids_are_relevant = np.all(
-                np.isin(self._client_ids, self._relevant_client_ids)
-            )
-            all_relevant_are_in_client_ids = np.all(
-                np.isin(self._relevant_client_ids, self._client_ids)
-            )
-            if not all_relevant_are_in_client_ids:
-                return "client ids does not contain all relevant clients"
-            if not all_client_ids_are_relevant:
-                return "there are client ids which are not relevant"
+            same_length = len(self._relevant_client_ids) == len(self._client_ids)
+            inclusion = np.all(np.isin(self._relevant_client_ids, self._client_ids))
+            if not (same_length and inclusion):
+                return "client ids are not a permutation of relevant clients"
         else:
             logger.warning(
                 "Validator will not check if the content of client_ids.npy matches with the list of relevant clients. Embeddings may not conform to competition format."
