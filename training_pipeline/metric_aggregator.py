@@ -1,4 +1,5 @@
 import json
+
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -6,6 +7,13 @@ from training_pipeline.tasks import ValidTasks
 from training_pipeline.metrics_containers import (
     MetricContainer,
 )
+from training_pipeline.constants import (
+    MAX_EPOCH,
+)
+
+
+class IncorrectMetricsTracker(Exception):
+    pass
 
 
 class MetricsAggregator:
@@ -20,6 +28,10 @@ class MetricsAggregator:
         """
         Method for attaching a metric tracker for aggregation later.
         """
+        if len(metrics_tracker) != MAX_EPOCH:
+            raise IncorrectMetricsTracker(
+                f"There are {len(metrics_tracker)} metrics and {MAX_EPOCH} epochs. Number of metrics should be equal to number of epochs."
+            )
         self._aggregated_metrics[task] = metrics_tracker
 
     def _find_best_weighted_metrics_and_epochs(self):
@@ -28,7 +40,7 @@ class MetricsAggregator:
         """
 
         def extract_weighted_metric(
-            epoch_and_weighted_metric: Tuple[int, float]
+            epoch_and_weighted_metric: Tuple[int, float],
         ) -> float:
             _, weighted_metric = epoch_and_weighted_metric
             return weighted_metric
