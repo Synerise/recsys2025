@@ -129,7 +129,6 @@ class UniversalModel(pl.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         metric_container = self.metric_calculator.compute()
-
         for metric_name, metric_val in asdict(metric_container).items():
             self.log(
                 metric_name,
@@ -138,4 +137,5 @@ class UniversalModel(pl.LightningModule):
                 logger=True,
             )
 
-        self.metrics_tracker.append(metric_container)
+        if not self.trainer.sanity_checking:
+            self.metrics_tracker.append(metric_container)
