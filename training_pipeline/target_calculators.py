@@ -57,6 +57,7 @@ class PropensityTargetCalculator(TargetCalculator):
 
     def compute_target(self, client_id: int, target_df: pd.DataFrame) -> np.ndarray:
         target = np.zeros(self.target_dim, dtype=np.float32)
+
         cats_in_target = target_df.loc[target_df["client_id"] == client_id][
             self._propensity_type
         ].unique()

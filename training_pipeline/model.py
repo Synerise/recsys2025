@@ -78,6 +78,7 @@ class UniversalModel(pl.LightningModule):
         metric_calculator: MetricCalculator,
         loss_fn: Callable[[Tensor, Tensor], Tensor],
         metrics_tracker: List[MetricContainer],
+        enable_logger: bool,
     ) -> None:
         super().__init__()
 
@@ -92,6 +93,7 @@ class UniversalModel(pl.LightningModule):
         self.metric_calculator = metric_calculator
         self.loss_fn = loss_fn
         self.metrics_tracker = metrics_tracker
+        self.enable_logger = enable_logger
 
     def forward(self, x) -> Tensor:
         return self.net(x)
@@ -112,7 +114,7 @@ class UniversalModel(pl.LightningModule):
             loss,
             on_step=True,
             prog_bar=True,
-            logger=True,
+            logger=self.enable_logger,
         )
         return loss
 
@@ -120,7 +122,7 @@ class UniversalModel(pl.LightningModule):
         x, y = val_batch
         preds = self.forward(x)
         loss = self.loss_fn(preds, y)
-        self.log("val_loss", loss, prog_bar=True, logger=True)
+        self.log("val_loss", loss, prog_bar=True, logger=self.enable_logger)
 
         self.metric_calculator.update(
             predictions=preds,
@@ -129,13 +131,13 @@ class UniversalModel(pl.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         metric_container = self.metric_calculator.compute()
-
         for metric_name, metric_val in asdict(metric_container).items():
             self.log(
                 metric_name,
                 metric_val,
                 prog_bar=True,
-                logger=True,
+                logger=self.enable_logger,
             )
 
-        self.metrics_tracker.append(metric_container)
+        if not self.trainer.sanity_checking:
+            self.metrics_tracker.append(metric_container)
