@@ -1,7 +1,13 @@
 import logging
-from pytorch_lightning.loggers import NeptuneLogger
+from typing import Literal
+from pytorch_lightning.loggers import NeptuneLogger, Logger
 
-from training_pipeline.tasks import ValidTasks
+from training_pipeline.tasks import (
+    ValidTasks,
+)
+from training_pipeline.train_logging_config import (
+    TrainLoggingConfig,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -13,7 +19,13 @@ class NeptuneLoggerFactory:
     Neptune logger factory based on config params.
     """
 
-    def __init__(self, project: None | str, api_key: None | str, name: str):
+    def __init__(
+        self,
+        project: None | str,
+        api_key: None | str,
+        name: str,
+        train_logging_config: TrainLoggingConfig,
+    ):
         """
         Sets up global logger config.
 
@@ -25,11 +37,13 @@ class NeptuneLoggerFactory:
             project (None | str) : name of neptune project,
             api_key (None | str) : api key
             name (str) : human readable name for the experiment.
+            train_logging_config (TrainLoggingConfig): train logging config
         """
         self.mode: str = "async"
         self.project = project
         self.api_key = api_key
         self.name = name
+        self.train_logging_config = train_logging_config
 
         if self.project is None:
             self.mode = "offline"
@@ -42,7 +56,9 @@ class NeptuneLoggerFactory:
                 "No Neptune API key found, using offline logging. To specify Neptune api key, set --neptune-api-key command line argument."
             )
 
-    def get_logger(self, task: ValidTasks, **neptune_run_kwargs) -> NeptuneLogger:
+    def _construct_logger(
+        self, task: ValidTasks, **neptune_run_kwargs
+    ) -> NeptuneLogger:
         """
         Adds task specific information to logger config and returns logger.
 
@@ -51,7 +67,9 @@ class NeptuneLoggerFactory:
         Returns:
             NeptuneLogger : configured neptune logger
         """
-        logger_name = f"{self.name}:{task.value}"
+        logger_name = (
+            f"{self.name}:{self.train_logging_config.logging_task_name(task=task)}"
+        )
         return NeptuneLogger(
             mode=self.mode,
             api_key=self.api_key,
@@ -59,4 +77,21 @@ class NeptuneLoggerFactory:
             name=logger_name,
             log_model_checkpoints=False,
             **neptune_run_kwargs,
+        )
+
+    def get_logger(
+        self, task: ValidTasks, **neptune_run_kwargs
+    ) -> Logger | Literal[False]:
+        """
+        Method checks logging configuration and returns either logger if enabled or False.
+        Args:
+            task (ValidTasks): type of the task
+            logging_config (LoggingConfig): Logging parameters configuration.
+            train_logger (Logger): Training logger.
+        """
+
+        return (
+            self._construct_logger(task=task, **neptune_run_kwargs)
+            if self.train_logging_config.logging_enabled
+            else False
         )

@@ -20,6 +20,9 @@ from training_pipeline.train_runner import (
     run_tasks,
 )
 from data_utils.data_dir import DataDir
+from training_pipeline.train_logging_config import (
+    TrainLoggingConfig,
+)
 from typing import List
 
 logging.basicConfig()
@@ -93,6 +96,11 @@ def get_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disables relevant clients check in validator, but enables embeddings for sets of clients other than relevant clients.",
     )
+    parser.add_argument(
+        "--hidden-logging-mode",
+        action="store_true",
+        help="Disables progress bar, model summary and logger. Overwrites tasks names to hidden ones",
+    )
     return parser
 
 
@@ -119,16 +127,22 @@ def parse_devices(device_arg: List[str]) -> List[int] | int | str:
 
 def main(params) -> None:
     tasks = [parse_task(task) for task in params.tasks]
+    train_logging_config = TrainLoggingConfig(
+        hidden_logging_mode=params.hidden_logging_mode
+    )
     neptune_logger_factory = NeptuneLoggerFactory(
         project=params.neptune_project,
         api_key=params.neptune_api_token,
         name=params.log_name,
+        train_logging_config=train_logging_config,
     )
+
     data_dir = DataDir(data_dir=Path(params.data_dir))
     task_constructor = TaskConstructor(data_dir=data_dir)
     score_dir = Path(params.score_dir) if params.score_dir else None
 
     run_tasks(
+        train_logging_config=train_logging_config,
         neptune_logger_factory=neptune_logger_factory,
         tasks=tasks,
         task_constructor=task_constructor,
@@ -145,4 +159,5 @@ def main(params) -> None:
 if __name__ == "__main__":
     parse = get_parser()
     params = parse.parse_args()
+
     main(params)

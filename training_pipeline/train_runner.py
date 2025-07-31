@@ -2,22 +2,20 @@ import logging
 import numpy as np
 import pytorch_lightning as pl
 
+from pytorch_lightning.loggers import Logger, NeptuneLogger
 from pathlib import Path
-from typing import List
-from pytorch_lightning.callbacks import RichProgressBar
-from pytorch_lightning.loggers import NeptuneLogger
+from typing import List, Literal
 
 from data_utils.data_dir import DataDir
 from validator.validate import (
     validate_and_load_embeddings,
 )
-from training_pipeline.logger_factory import (
-    NeptuneLoggerFactory,
-)
 from training_pipeline.model import (
     UniversalModel,
 )
-from training_pipeline.tasks import ValidTasks
+from training_pipeline.tasks import (
+    ValidTasks,
+)
 from training_pipeline.data_module import (
     BehavioralDataModule,
 )
@@ -40,6 +38,12 @@ from training_pipeline.task_constructor import (
 from training_pipeline.metric_aggregator import (
     MetricsAggregator,
 )
+from training_pipeline.train_logging_config import (
+    TrainLoggingConfig,
+)
+from training_pipeline.logger_factory import (
+    NeptuneLoggerFactory,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
@@ -53,7 +57,8 @@ def run_training(
     num_workers: int,
     accelerator: str,
     devices: List[int] | str | int,
-    neptune_logger: NeptuneLogger,
+    train_logger: NeptuneLogger | Literal[False],
+    train_logging_config: TrainLoggingConfig,
 ) -> None:
     """
     Function for running the training of a model, with all the training
@@ -67,7 +72,8 @@ def run_training(
         num_workers (int): Number of workers to be used for loading data
         accelerator (str): Type of device to run training on (e.g. gpu, cpu, etc.)
         devices (List[int] | str | int): id of devices used for training
-        neptune_logger (NeptuneLogger): logger instance where training information is logged
+        train_logger (NeptuneLogger | Literal[False]): logger instance where training information is logged or False when training runs in safe logging mode
+        train_logging_config (LoggingConfig): Trainer logging parameters configuration
     """
 
     data = BehavioralDataModule(
@@ -88,14 +94,17 @@ def run_training(
         metric_calculator=task_settings.metric_calculator,
         loss_fn=task_settings.loss_fn,
         metrics_tracker=task_settings.metrics_tracker,
+        enable_logger=train_logging_config.logging_enabled,
     )
 
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=devices,
         max_epochs=MAX_EPOCH,
-        logger=neptune_logger,
-        callbacks=RichProgressBar(leave=True),
+        enable_progress_bar=train_logging_config.logging_enabled,
+        enable_model_summary=train_logging_config.logging_enabled,
+        logger=train_logger,
+        callbacks=train_logging_config.callbacks,
         log_every_n_steps=5000,
     )
 
@@ -103,6 +112,7 @@ def run_training(
 
 
 def run_tasks(
+    train_logging_config: TrainLoggingConfig,
     neptune_logger_factory: NeptuneLoggerFactory,
     tasks: List[ValidTasks],
     task_constructor: TaskConstructor,
@@ -119,6 +129,7 @@ def run_tasks(
     prepares running paramteres based on preliminary setup, and the calls the `run_train` method.
 
     Args:
+        train_logging_config (LoggingConfig): Logging parameters configuration.
         neptune_logger_factory (NeptuneLoggerFactory): Factory that can generate instance of neptune loggers
             with some pre-set parameters common to the embedding on which experiments are run.
         tasks (List[ValidTasks]): tasks on which the embeddings are to be evaluated.
@@ -140,7 +151,7 @@ def run_tasks(
     target_data = TargetData.read_from_dir(target_dir=data_dir.target_dir)
     metrics_aggregator = MetricsAggregator()
     for task in tasks:
-        logger.info("Running on %s", task.value)
+        logger.info(f"Running on {train_logging_config.logging_task_name(task=task)}")
         logger.info("Constructing task specific data structures")
         task_settings = task_constructor.construct_task(task=task)
 
@@ -149,12 +160,14 @@ def run_tasks(
             transformed_client_ids,
             transformed_embeddings,
         ) = transform_client_ids_and_embeddings(
-            task=task, client_ids=client_ids, embeddings=embeddings, data_dir=data_dir
+            task=task,
+            client_ids=client_ids,
+            embeddings=embeddings,
+            data_dir=data_dir,
         )
 
         logger.info("Setting up training logger")
-        neptune_logger = neptune_logger_factory.get_logger(task=task)
-
+        train_logger = neptune_logger_factory.get_logger(task=task)
         logger.info("Running training")
         run_training(
             task_settings=task_settings,
@@ -164,14 +177,20 @@ def run_tasks(
             num_workers=num_workers,
             accelerator=accelerator,
             devices=devices,
-            neptune_logger=neptune_logger,
+            train_logger=train_logger,
+            train_logging_config=train_logging_config,
         )
-        neptune_logger.experiment.stop()
+        if isinstance(train_logger, Logger):
+            train_logger.experiment.stop()
 
         metrics_aggregator.update(
             task=task, metrics_tracker=task_settings.metrics_tracker
         )
-        logger.info("Run on %s completed", task.value)
+        logger.info(
+            f"Run on {train_logging_config.logging_task_name(task=task)} completed"
+        )
 
     if score_dir:
-        metrics_aggregator.save(score_dir=score_dir)
+        metrics_aggregator.save(
+            score_dir=score_dir, train_logging_config=train_logging_config
+        )

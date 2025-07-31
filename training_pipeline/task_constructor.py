@@ -66,7 +66,7 @@ class TaskConstructor:
         elif isinstance(task, PropensityTasks):
             return self._construct_propensity_task(task=task)
         else:
-            raise TaskNotSupportedError(f"Task: {task.value} is not supported")
+            raise TaskNotSupportedError("An unsupported task was provided.")
 
     def _construct_churn_task(self, task: ChurnTasks) -> TaskSettings:
         target_calculator = ChurnTargetCalculator()
@@ -107,6 +107,7 @@ class TaskConstructor:
         popularity_data = np.load(
             self.data_dir.target_dir / f"popularity_{task.value}.npy"
         )
+
         return propensity_targets, popularity_data
 
 

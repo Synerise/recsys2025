@@ -11,11 +11,14 @@ class ValidTasks(Enum):
 
 class ChurnTasks(ValidTasks):
     CHURN = "churn"
+    CONVERSION = "conversion"
 
 
 class PropensityTasks(ValidTasks):
     PROPENSITY_CATEGORY = "propensity_category"
     PROPENSITY_SKU = "propensity_sku"
+    PROPENSITY_NEW_SKU = "propensity_new_sku"
+    PROPENSITY_PRICE = "propensity_price"
 
 
 def parse_task(task_name: str) -> ValidTasks:
@@ -33,7 +36,7 @@ def parse_task(task_name: str) -> ValidTasks:
             return task_type(task_name)
         except ValueError:
             continue
-    raise TaskNotSupportedError(f"Task: {task_name} is not supported")
+    raise TaskNotSupportedError("An unsupported task was provided.")
 
 
 def get_propensity_column(task: PropensityTasks) -> str:
